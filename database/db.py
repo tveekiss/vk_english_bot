@@ -54,6 +54,8 @@ class Users(Base):
 
     name: Mapped[str]
 
+    max_streak: Mapped[int] = mapped_column(default=0)
+
     words: Mapped[list['UserWords']] = relationship(back_populates='user', lazy='joined')
 
     def __repr__(self):

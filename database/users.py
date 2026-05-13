@@ -139,6 +139,53 @@ async def update_user_word_repeat(vk_id: int, word_id: int, delta: int):
         await session.commit()
 
 
+async def get_random_game_word(vk_id: int, excluded_word_ids=None):
+    if excluded_word_ids is None:
+        excluded_word_ids = []
+
+    async with async_session() as session:
+        user = await session.scalar(select(Users).where(Users.vk_id == vk_id))
+
+        if user is None:
+            return None
+
+        query = (
+            select(Words)
+            .join(UserWords, UserWords.word_id == Words.id)
+            .where(UserWords.user_id == user.id)
+            .where(UserWords.repeat == 0)
+        )
+
+        if excluded_word_ids:
+            query = query.where(Words.id.not_in(excluded_word_ids))
+
+        word = await session.scalar(
+            query.order_by(func.random()).limit(1)
+        )
+
+        return word
+
+
+async def set_user_word_repeat(vk_id: int, word_id: int, repeat: int):
+    async with async_session() as session:
+        user = await session.scalar(select(Users).where(Users.vk_id == vk_id))
+
+        if user is None:
+            return
+
+        user_word = await session.scalar(
+            select(UserWords)
+            .where(UserWords.user_id == user.id)
+            .where(UserWords.word_id == word_id)
+        )
+
+        if user_word is None:
+            return
+
+        user_word.repeat = repeat
+        await session.commit()
+
+
 async def get_user_statistics(vk_id: int):
     async with async_session() as session:
         user = await session.scalar(select(Users).where(Users.vk_id == vk_id))
@@ -193,5 +240,32 @@ async def get_user_statistics(vk_id: int):
             "streak_days": streak_days,
             "learned_today": learned_today,
             "learned_week": learned_week,
-            "learned_month": learned_month
+            "learned_month": learned_month,
+            "max_streak": user.max_streak
         }
+
+async def update_user_max_streak(vk_id: int, streak: int):
+    async with async_session() as session:
+        user = await session.scalar(select(Users).where(Users.vk_id == vk_id))
+
+        if user is None:
+            return False
+
+        if streak > user.max_streak:
+            user.max_streak = streak
+            await session.commit()
+            return True
+
+        return False
+
+
+async def get_leaderboard(limit: int = 10):
+    async with async_session() as session:
+        result = await session.execute(
+            select(Users)
+            .where(Users.max_streak > 0)
+            .order_by(Users.max_streak.desc())
+            .limit(limit)
+        )
+
+        return result.unique().scalars().all()
