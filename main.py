@@ -33,7 +33,7 @@ async def main():
             user_name = info['first_name']
             user_id = info['id']
             if resieved_message == 'Привет':
-                write_message(user_id, f'Пошел нахуй, {user_name}!')
+                write_message(user_id, f'Привет!, {user_name}!')
                 await add_user(vk_id=user_id, name=user_name)
 
 
