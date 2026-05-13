@@ -13,8 +13,9 @@ from database.users import (
     get_random_unlearned_word,
     get_answer_options,
     add_user_word,
+    get_random_repeat_word,
+    update_user_word_repeat,
 )
-
 
 token = "vk1.a.ynkozQOPuhC19SfmXq7m5XkRKInLRZ5A5jg5ELC9XX5W5CIAGXA7ceAWVlVT-tcMq2OZ91Uujgtx7-tjw1zvyP0Mok4A3xYroAZwHVPFvu3Eny6PG-0QNI2Ev1lD9iUa8RjVYBpdXtHzMeNRKuoUjc5v6HzF2nLgGh2-0dKVYv_NEPcMnjB3JWGBeXSmAnhWFfbDnel2BN8K4XZeWp-tmQ"
 authorize = vk_api.VkApi(token=token)
@@ -186,6 +187,69 @@ async def send_learning_word(user_id, topic_name):
     )
 
 
+async def send_repeat_word(user_id):
+    word = await get_random_repeat_word(user_id)
+
+    if word is None:
+        write_message(
+            user_id,
+            "Слов для повторения больше нет 🎉",
+            main_menu_keyboard()
+        )
+
+        user_states[user_id] = {
+            "state": "main_menu"
+        }
+        return
+
+    options = await get_answer_options(word.topic_id, word.id)
+
+    if options is None:
+        write_message(
+            user_id,
+            "В этой теме недостаточно слов для создания 4 вариантов ответа.",
+            main_menu_keyboard()
+        )
+
+        user_states[user_id] = {
+            "state": "main_menu"
+        }
+        return
+
+    random.shuffle(options)
+
+    answer_options = {}
+    answer_text = ""
+
+    for index, option in enumerate(options, start=1):
+        number = str(index)
+        answer_options[number] = option.rus
+        answer_text += f"{number}. {option.rus}\n"
+
+    buttons = [
+        [("1", "positive"), ("2", "positive")],
+        [("3", "positive"), ("4", "positive")],
+        [("Назад в меню", "negative")]
+    ]
+
+    user_states[user_id] = {
+        "state": "answering_repeat_word",
+        "word_id": word.id,
+        "correct_answer": word.rus,
+        "answer_options": answer_options
+    }
+
+    write_message(
+        user_id,
+        f"Повторение 🔁\n\n"
+        f"Как переводится слово:\n\n"
+        f"🇬🇧 {word.eng}\n\n"
+        f"Варианты ответа:\n"
+        f"{answer_text}",
+        make_keyboard(buttons)
+    )
+
+
 async def handle_message(user_id, user_name, text):
     text = text.strip()
 
@@ -203,12 +267,22 @@ async def handle_message(user_id, user_name, text):
         await send_topics(user_id)
         return
 
-    if text in ["Повторение", "Мини-игра", "Статистика"]:
+    if text == "Повторение":
+        await send_repeat_word(user_id)
+
+        return
+
+    if text in ["Мини-игра", "Статистика"]:
         write_message(
+
             user_id,
-            "Этот раздел сделаем позже 🙂\nПока доступно изучение слов.",
+
+            "Этот раздел сделаем позже 🙂",
+
             main_menu_keyboard()
+
         )
+
         return
 
     if state == "choosing_topic":
@@ -253,6 +327,37 @@ async def handle_message(user_id, user_name, text):
             )
 
         await send_learning_word(user_id, topic_name)
+        return
+
+    if state == "answering_repeat_word":
+        current_state = user_states[user_id]
+
+        correct_answer = current_state["correct_answer"]
+        word_id = current_state["word_id"]
+        answer_options = current_state["answer_options"]
+
+        selected_answer = answer_options.get(text)
+
+        if selected_answer is None:
+            write_message(
+                user_id,
+                "Пожалуйста, выбери вариант кнопкой: 1, 2, 3 или 4."
+            )
+            return
+
+        if selected_answer == correct_answer:
+            await update_user_word_repeat(user_id, word_id, delta=-1)
+            write_message(user_id, "Правильно! ✅\nПовторений стало меньше.")
+        else:
+            await update_user_word_repeat(user_id, word_id, delta=1)
+            write_message(
+                user_id,
+                f"Неправильно ❌\n"
+                f"Правильный ответ: {correct_answer}\n"
+                f"Это слово нужно будет повторить ещё раз."
+            )
+
+        await send_repeat_word(user_id)
         return
 
     await send_start_message(user_id, user_name)

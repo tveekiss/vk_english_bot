@@ -93,3 +93,44 @@ async def add_user_word(vk_id: int, word_id: int, repeat: int):
         session.add(user_word)
         await session.commit()
 
+async def get_random_repeat_word(vk_id: int):
+    async with async_session() as session:
+        user = await session.scalar(select(Users).where(Users.vk_id == vk_id))
+
+        if user is None:
+            return None
+
+        word = await session.scalar(
+            select(Words)
+            .join(UserWords, UserWords.word_id == Words.id)
+            .where(UserWords.user_id == user.id)
+            .where(UserWords.repeat > 0)
+            .order_by(func.random())
+            .limit(1)
+        )
+
+        return word
+
+
+async def update_user_word_repeat(vk_id: int, word_id: int, delta: int):
+    async with async_session() as session:
+        user = await session.scalar(select(Users).where(Users.vk_id == vk_id))
+
+        if user is None:
+            return
+
+        user_word = await session.scalar(
+            select(UserWords)
+            .where(UserWords.user_id == user.id)
+            .where(UserWords.word_id == word_id)
+        )
+
+        if user_word is None:
+            return
+
+        user_word.repeat += delta
+
+        if user_word.repeat < 0:
+            user_word.repeat = 0
+
+        await session.commit()
