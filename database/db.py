@@ -9,7 +9,14 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship,
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 
 
-engine = create_async_engine('sqlite+aiosqlite:///:database.db:', echo=True)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # корень проекта
+DB_PATH = os.path.join(BASE_DIR, "database/database.db")
+
+engine = create_async_engine(
+    f"sqlite+aiosqlite:///{DB_PATH}",
+    echo=True
+)
+
 async_session = async_sessionmaker(engine)
 
 
@@ -43,11 +50,13 @@ class Users(Base):
 
     vk_id = Column(BigInteger, unique=True)
 
+    name: Mapped[str]
+
     words: Mapped[list['UserWords']] = relationship(back_populates='user', lazy='joined')
 
     def __repr__(self):
 
-        return f'айди: {self.vk_id}'
+        return f'айди: {self.vk_id}, Имя: {self.name}'
 
 
 class WordsTopics(Base):
