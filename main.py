@@ -15,6 +15,7 @@ from database.users import (
     add_user_word,
     get_random_repeat_word,
     update_user_word_repeat,
+    get_user_statistics,
 )
 
 token = "vk1.a.ynkozQOPuhC19SfmXq7m5XkRKInLRZ5A5jg5ELC9XX5W5CIAGXA7ceAWVlVT-tcMq2OZ91Uujgtx7-tjw1zvyP0Mok4A3xYroAZwHVPFvu3Eny6PG-0QNI2Ev1lD9iUa8RjVYBpdXtHzMeNRKuoUjc5v6HzF2nLgGh2-0dKVYv_NEPcMnjB3JWGBeXSmAnhWFfbDnel2BN8K4XZeWp-tmQ"
@@ -250,6 +251,29 @@ async def send_repeat_word(user_id):
     )
 
 
+async def send_statistics(user_id):
+    statistics = await get_user_statistics(user_id)
+
+    if statistics is None:
+        write_message(
+            user_id,
+            "Не удалось найти твою статистику.",
+            main_menu_keyboard()
+        )
+        return
+
+    write_message(
+        user_id,
+        f"📊 Твоя статистика:\n\n"
+        f"Всего слов изучено: {statistics['total_learned']}\n"
+        f"Дней подряд занимаешься: {statistics['streak_days']}\n\n"
+        f"Выучено слов сегодня: {statistics['learned_today']}\n"
+        f"Выучено слов за неделю: {statistics['learned_week']}\n"
+        f"Выучено слов за месяц: {statistics['learned_month']}",
+        main_menu_keyboard()
+    )
+
+
 async def handle_message(user_id, user_name, text):
     text = text.strip()
 
@@ -272,17 +296,16 @@ async def handle_message(user_id, user_name, text):
 
         return
 
-    if text in ["Мини-игра", "Статистика"]:
+    if text == "Статистика":
+        await send_statistics(user_id)
+        return
+
+    if text == "Мини-игра":
         write_message(
-
             user_id,
-
             "Этот раздел сделаем позже 🙂",
-
             main_menu_keyboard()
-
         )
-
         return
 
     if state == "choosing_topic":

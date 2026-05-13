@@ -33,7 +33,9 @@ class UserWords(Base):
     word_id: Mapped[int] = mapped_column(ForeignKey('words.id', ondelete='CASCADE'))
 
     repeat: Mapped[int]
-    date: Mapped[str] = mapped_column(default=datetime.strftime(datetime.now(), '%d.%m.%Y'))
+    date: Mapped[str] = mapped_column(
+        default=lambda: datetime.now().strftime('%d.%m.%Y')
+    )
 
     user: Mapped['Users'] = relationship(back_populates='words', lazy='joined')
     word: Mapped['Words'] = relationship(back_populates='users', lazy='joined')

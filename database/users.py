@@ -1,6 +1,9 @@
 from sqlalchemy import select, func
 from database.db import Users, async_session, Words, UserWords, WordsTopics
 
+from datetime import datetime, timedelta
+from sqlalchemy import select, func
+
 
 async def get_users_by_id(vk_id) -> Users | None:
     async with async_session() as session:
@@ -134,3 +137,61 @@ async def update_user_word_repeat(vk_id: int, word_id: int, delta: int):
             user_word.repeat = 0
 
         await session.commit()
+
+
+async def get_user_statistics(vk_id: int):
+    async with async_session() as session:
+        user = await session.scalar(select(Users).where(Users.vk_id == vk_id))
+
+        if user is None:
+            return None
+
+        user_words_result = await session.execute(
+            select(UserWords).where(UserWords.user_id == user.id)
+        )
+
+        user_words = user_words_result.unique().scalars().all()
+
+        today = datetime.now().date()
+        week_ago = today - timedelta(days=7)
+        month_ago = today - timedelta(days=30)
+
+        total_learned = len(user_words)
+
+        learned_today = 0
+        learned_week = 0
+        learned_month = 0
+
+        learning_dates = set()
+
+        for user_word in user_words:
+            try:
+                word_date = datetime.strptime(user_word.date, "%d.%m.%Y").date()
+            except ValueError:
+                continue
+
+            learning_dates.add(word_date)
+
+            if word_date == today:
+                learned_today += 1
+
+            if word_date >= week_ago:
+                learned_week += 1
+
+            if word_date >= month_ago:
+                learned_month += 1
+
+        streak_days = 0
+        current_date = today
+
+        while current_date in learning_dates:
+            streak_days += 1
+            current_date -= timedelta(days=1)
+
+        return {
+            "total_learned": total_learned,
+            "streak_days": streak_days,
+            "learned_today": learned_today,
+            "learned_week": learned_week,
+            "learned_month": learned_month
+        }
