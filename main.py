@@ -481,7 +481,7 @@ async def handle_message(user_id, user_name, text):
             await add_user_word(user_id, word_id, repeat=1)
             write_message(user_id, "Правильно! ✅")
         else:
-            await add_user_word(user_id, word_id, repeat=3)
+            await add_user_word(user_id, word_id, repeat=2)
             write_message(
                 user_id,
                 f"Неправильно ❌\n"
